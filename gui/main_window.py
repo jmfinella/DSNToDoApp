@@ -1,8 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox as mb
 import datetime as dt
-from ..core.config import SYNC_INTERVAL_MS, TOPMOST, WINDOW_GEOMETRY
-from ..controller.app_controller import AppController
+from core.config import SYNC_INTERVAL_MS, TOPMOST, WINDOW_GEOMETRY
+from controller.app_controller import AppController
+from gui.task_list import ScrollableTaskList
 
 class MainWindow(tk.Tk):
     def __init__(self, controller: AppController):
@@ -75,6 +76,8 @@ class ContextTab(ttk.Frame):
         super().__init__(parent)
         self.controller = controller
         self.context_id = context_id
+        self._last_task_id = None
+        self._tasks_by_id = {}  # cache: id -> task dict
 
         # Header: quick add
         header = ttk.Frame(self)
@@ -85,22 +88,18 @@ class ContextTab(ttk.Frame):
         self.entry.bind("<Return>", self._on_add)
         ttk.Button(header, text="Agregar", command=self._on_add).pack(side="left")
 
-        # Treeview
-        cols = ("title", "due", "priority")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=14)
-        self.tree.heading("title", text="Tarea")
-        self.tree.heading("due", text="Vence")
-        self.tree.heading("priority", text="Pri")
-        self.tree.column("title", anchor="w", width=400)
-        self.tree.column("due", anchor="center", width=90)
-        self.tree.column("priority", anchor="center", width=60)
-        self.tree.tag_configure("overdue", foreground="#B00020")
-        self.tree.pack(fill="both", expand=True)
+        # Scrollable task list (reemplaza Treeview)
+        self.task_list = ScrollableTaskList(
+            self,
+            on_toggle=self._on_toggle_cb,          # recibe (task_id, done)
+            on_menu=self._on_menu_cb,              # recibe (task_id)
+            on_add_subtask=self._on_add_subtask_cb # recibe (task_id)
+        )
+        self.task_list.pack(fill="both", expand=True)
 
-        # bindings
-        self.tree.bind("<Double-1>", self._toggle_done)
-        self.tree.bind("<space>", self._toggle_done)
-        self.tree.bind("<Delete>", self._archive)
+        # Atajos equivalentes
+        self.bind_all("<space>", self._kb_toggle_last)
+        self.bind_all("<Delete>", self._kb_archive_last)
 
     # ---------- data ----------
     def refresh(self) -> int:
@@ -109,57 +108,136 @@ class ContextTab(ttk.Frame):
         except Exception as e:
             print("Sync error:", e)
             return 0
-        self.tree.delete(*self.tree.get_children(""))
+
+        # cache por id para callbacks del controller
+        self._tasks_by_id = {t["id"]: t for t in items}
+
+        rows = []
+        today = dt.date.today()
         for t in items:
-            due = t.get("due_date") or ""
-            tag = ()
-            try:
-                if due and dt.date.fromisoformat(due[:10]) < dt.date.today():
-                    tag = ("overdue",)
-            except Exception:
-                pass
-            self.tree.insert("", "end", iid=t["id"], values=(t.get("title"), due[:10] if due else "", t.get("priority", 0)), tags=tag)
+            tid = t["id"]
+            title = t.get("title") or t.get("text") or ""
+            # aunque list_open_tasks devuelve "open", lo dejo robusto:
+            done = (t.get("status") == "done")
+            tags = []
+
+            # Vencimiento -> tag
+            due = t.get("due_date") or t.get("due")
+            if due:
+                try:
+                    d = dt.date.fromisoformat(str(due)[:10])
+                    if d < today and not done:
+                        tags.append(("Vencida", "#B00020"))
+                    else:
+                        tags.append((f"Vence {d.isoformat()}", "#CBD5E1"))
+                except Exception:
+                    tags.append((str(due), "#CBD5E1"))
+
+            # Prioridad -> tag
+            pri = t.get("priority", 0)
+            if pri:
+                tags.append((f"P{pri}", "#F59E0B"))
+
+            rows.append({
+                "id": tid,
+                "text": title,
+                "done": done,
+                "tags": tags,
+            })
+
+        self.task_list.set_tasks(rows)
         return len(items)
 
-    # ---------- actions ----------
-    def _on_add(self, event=None):
-        title = self.entry.get().strip()
-        if not title:
+    # ---------- callbacks desde el widget ----------
+    def _on_toggle_cb(self, task_id: str, done: bool):
+        """El controller necesita el dict completo -> usamos el cache."""
+        self._last_task_id = task_id
+        task = self._tasks_by_id.get(task_id)
+        if not task:
             return
         try:
-            t = self.controller.add_task(self.context_id, title)
+            self.controller.toggle_done(task)
+        except Exception as e:
+            print("Toggle error:", e)
+        finally:
+            self.refresh()
+
+    def _on_menu_cb(self, task_id: str):
+        self._last_task_id = task_id
+        task = self._tasks_by_id.get(task_id)
+
+        # Si tienes un menú del controller, lo llamas aquí:
+        if hasattr(self.controller, "open_task_menu"):
+            try:
+                self.controller.open_task_menu(self.context_id, task or {"id": task_id})
+                return
+            except Exception as e:
+                print("Menu error:", e)
+
+        # Menú simple por defecto
+        menu = tk.Menu(self, tearoff=False)
+        menu.add_command(label="Editar", command=lambda: self._edit_task(task_id))
+        menu.add_command(label="Archivar", command=lambda: self._archive_task(task_id))
+        try:
+            menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
+        finally:
+            menu.grab_release()
+
+    def _on_add_subtask_cb(self, task_id: str):
+        self._last_task_id = task_id
+        # Tu controller no define subtareas aún; deja hook opcional:
+        if hasattr(self.controller, "add_subtask"):
+            try:
+                self.controller.add_subtask(self.context_id, self._tasks_by_id.get(task_id))
+            except Exception as e:
+                print("Add subtask error:", e)
+            finally:
+                self.refresh()
+
+    # ---------- header actions ----------
+    def _on_add(self, event=None):
+        text = self.entry.get().strip()
+        if not text:
+            return
+        try:
+            self.controller.add_task(self.context_id, text)
+        except Exception as e:
+            print("Add error:", e)
+        finally:
             self.entry.delete(0, "end")
             self.refresh()
-        except Exception as e:
-            from tkinter import messagebox as mb
-            mb.showerror("Crear tarea", f"No se pudo crear la tarea: {e}")
 
-    def _toggle_done(self, event=None):
-        sel = self.tree.selection()
-        if not sel:
+    # ---------- atajos de teclado ----------
+    def _kb_toggle_last(self, event=None):
+        if not self._last_task_id:
             return
-        task_id = sel[0]
-        try:
-            # obtener datos mínimos para toggle (status actual)
-            # en una versión futura podríamos cachearlos
-            for iid in sel:
-                task = {"id": iid, "status": "open"}  # asumimos open; el server devuelve nuevo estado
-                self.controller.toggle_done(task)
-            self.refresh()
-        except Exception as e:
-            from tkinter import messagebox as mb
-            mb.showerror("Actualizar", f"No se pudo actualizar la tarea: {e}")
+        # lectura del estado visible y toggle
+        row = self.task_list._rows.get(self._last_task_id)
+        if not row:
+            return
+        # no necesitamos 'done' exacto porque el controller hace toggle:
+        self._on_toggle_cb(self._last_task_id, not bool(row.var.get()))
 
-    def _archive(self, event=None):
-        sel = self.tree.selection()
-        if not sel:
-            return
-        from tkinter import messagebox as mb
-        if not mb.askyesno("Archivar", "¿Archivar la tarea seleccionada?"):
+    def _kb_archive_last(self, event=None):
+        if self._last_task_id:
+            self._archive_task(self._last_task_id)
+
+    # ---------- helpers ----------
+    def _archive_task(self, task_id: str):
+        task = self._tasks_by_id.get(task_id)
+        if not task:
             return
         try:
-            for iid in sel:
-                self.controller.archive({"id": iid})
-            self.refresh()
+            self.controller.archive(task)
         except Exception as e:
-            mb.showerror("Archivar", f"No se pudo archivar la tarea: {e}")
+            print("Archive error:", e)
+        finally:
+            self.refresh()
+
+    def _edit_task(self, task_id: str):
+        # Hook opcional si más adelante agregas edición
+        if hasattr(self.controller, "edit_task"):
+            try:
+                self.controller.edit_task(self.context_id, self._tasks_by_id.get(task_id))
+            except Exception as e:
+                print("Edit error:", e)

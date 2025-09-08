@@ -1,7 +1,7 @@
 from __future__ import annotations
 import requests
 from typing import List, Dict, Any, Optional
-from ..core.exceptions import PBError
+from core.exceptions import PBError
 
 
 class PocketBaseClient:
