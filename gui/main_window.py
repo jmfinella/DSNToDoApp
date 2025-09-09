@@ -117,8 +117,14 @@ class ContextTab(ttk.Frame):
         for t in items:
             tid = t["id"]
             title = t.get("title") or t.get("text") or ""
+            parent_id = t.get("parent_task") or t.get("parent_id")
+            if parent_id:
+                title = "    " + title
             # aunque list_open_tasks devuelve "open", lo dejo robusto:
             done = (t.get("status") == "done")
+            cancelled = (t.get("status") == "cancelled")
+            kind = t.get("kind") or "todo"
+            recurrence = t.get("recurrence")  # si tienes este campo
             tags = []
 
             # Vencimiento -> tag
@@ -130,6 +136,12 @@ class ContextTab(ttk.Frame):
                         tags.append(("Vencida", "#B00020"))
                     else:
                         tags.append((f"Vence {d.isoformat()}", "#CBD5E1"))
+                    if done:
+                        tags.append(("✓", "#10B981"))
+                    if cancelled:
+                        tags.append(("✗", "#9CA3AF"))
+                    if recurrence:
+                        tags.append(("Recurrencia", "#F59E0B"))
                 except Exception:
                     tags.append((str(due), "#CBD5E1"))
 

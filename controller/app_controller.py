@@ -19,7 +19,7 @@ class AppController:
 
     # ---- tasks ----
     def list_open_tasks(self, context_id: str) -> List[Dict[str, Any]]:
-        return self.client.list_tasks(context_id, status="open, done, cancelled")
+        return self.client.list_tasks(context_id, status="open")
     
     def list_all_tasks(self, context_id: str) -> List[Dict[str, Any]]:
         return self.client.list_tasks(context_id, status="all")

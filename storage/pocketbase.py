@@ -51,10 +51,10 @@ class PocketBaseClient:
     # ---------- tasks ----------
     def list_tasks(self, context_id: str, status: str = "all") -> List[Dict[str, Any]]:
         url = f"{self.base_url}/api/collections/tasks/records"
-        filt = f'owner = "{self.user_id}" && context = "{context_id}"' if context_id != 'all' else f'owner = "{self.user_id}"'
+        filt = f'owner = "{self.user_id}" && context = "{context_id}"' if context_id and context_id != 'all' else f'owner = "{self.user_id}"'
         if status:
             if status == "all":
-                filt += f' && status in ("open", "done", "cancelled")'
+                filt += f' && status = "open" || status = "done" || status = "cancelled"'
             else:
                 filt += f' && status = "{status}"'
         r = self.session.get(url, params={"filter": filt, "sort": "position,-priority,created", "perPage": 500}, timeout=10)

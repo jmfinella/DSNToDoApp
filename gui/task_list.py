@@ -48,7 +48,7 @@ class TaskRow(ttk.Frame):
 
         # Checkbox
         self.chk = ttk.Checkbutton(self, variable=self.var, command=self._toggle)
-        self.chk.grid(row=0, column=0, padx=(8, 6), pady=6, sticky="w")
+        self.chk.grid(row=0, column=0, padx=(8, 6), pady=4, sticky="w")
 
         # Text label (wrapping)
         self.lbl = ttk.Label(self, text=text, wraplength=wrap, anchor="w", justify="left")
@@ -56,7 +56,7 @@ class TaskRow(ttk.Frame):
 
         # Tag container
         self.tag_container = ttk.Frame(self)
-        self.tag_container.grid(row=1, column=2, sticky="w", pady=(2, 6))
+        self.tag_container.grid(row=1, column=2, sticky="w", pady=(2, 4))
 
         # Actions (⋮ and +)
         self.menu_btn = ttk.Button(self, text="⋮", width=2, command=self._menu)
@@ -89,7 +89,7 @@ class TaskRow(ttk.Frame):
                 text=label,
                 bg=color,
                 fg=_ideal_text_color(color),
-                padx=6,
+                padx=4,
                 pady=2,
                 borderwidth=0,
                 relief="flat",
@@ -129,7 +129,7 @@ class ScrollableTaskList(ttk.Frame):
         on_menu: Optional[Callable[[str], None]] = None,
         on_add_subtask: Optional[Callable[[str], None]] = None,
         row_wrap: int = 600,
-        row_padding: Tuple[int, int] = (6, 6),
+        row_padding: Tuple[int, int] = (2, 2),
         **kwargs,
     ):
         super().__init__(master, **kwargs)
@@ -302,6 +302,13 @@ def _ideal_text_color(bg_hex: str) -> str:
     # Perceived luminance
     luminance = 0.299*r + 0.587*g + 0.114*b
     return "black" if luminance > 186 else "white"
+
+
+
+
+
+
+
 
 
 # --- Demo ---
