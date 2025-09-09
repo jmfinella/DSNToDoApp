@@ -104,7 +104,7 @@ class ContextTab(ttk.Frame):
     # ---------- data ----------
     def refresh(self) -> int:
         try:
-            items = self.controller.list_open_tasks(self.context_id)
+            items = self.controller.list_all_tasks(self.context_id)
         except Exception as e:
             print("Sync error:", e)
             return 0
