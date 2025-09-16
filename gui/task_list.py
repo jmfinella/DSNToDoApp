@@ -35,8 +35,7 @@ class TaskRow(ttk.Frame):
         on_toggle: Optional[Callable[[str, bool], None]] = None,
         on_menu: Optional[Callable[[str], None]] = None,
         on_add_subtask: Optional[Callable[[str], None]] = None,
-        wrap: int = 600,
-    ):
+        wrap: int = 600,):
         super().__init__(master)
         self.task_id = task_id
         self._on_toggle = on_toggle
@@ -66,7 +65,8 @@ class TaskRow(ttk.Frame):
 
         self._render_tags(tags or [])
         self._apply_done_style(done)
-
+        #self.bind("<Destroy>", lambda e: print("[DESTROY]", self, "task_id=", self.task_id))
+    
     # --- Public API ---
     def set_text(self, text: str):
         self.lbl.configure(text=text)
@@ -107,17 +107,17 @@ class TaskRow(ttk.Frame):
         self._apply_done_style(done)
         if self._on_toggle:
             self._on_toggle(self.task_id, done)
-        self.event_generate("<<TaskToggle>>", when="tail")
+        #self.event_generate("<<TaskToggle>>", when="tail")
 
     def _menu(self):
         if self._on_menu:
             self._on_menu(self.task_id)
-        self.event_generate("<<TaskMenu>>", when="tail")
+        #self.event_generate("<<TaskMenu>>", when="tail")
 
     def _add_subtask(self):
         if self._on_add_subtask:
             self._on_add_subtask(self.task_id)
-        self.event_generate("<<TaskAddSubtask>>", when="tail")
+        #self.event_generate("<<TaskAddSubtask>>", when="tail")
 
 
 class ScrollableTaskList(ttk.Frame):

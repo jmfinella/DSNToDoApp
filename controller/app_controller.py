@@ -34,32 +34,16 @@ class AppController:
         new_status = "open" if task.get("status") == "done" else "done"
         return self.client.patch_task(task["id"], status=new_status)
 
-    def archive(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        return self.client.patch_task(task["id"], status="archived")
-
     # ---- daily ops ----
     def prepare_day(self):
         svc = DailyOps(self.client.base_url, self.client.token, self.client.user_id)
         svc.prepare_today()
-        
-    def update_task(self, task_id: str, **fields) -> Dict[str, Any]:
-        """Editar/patch de una tarea."""
-        return self.client.patch_task(task_id, **fields)
 
-    def create_subtask(self, parent_task_id: str, title: str) -> Dict[str, Any]:
-        """Crear una subtarea ligada a una tarea padre."""
-        # posición naive al final dentro del grupo del padre
-        siblings = self.client.list_subtasks(parent_task_id)  # si no lo tienes, usa un filtro list_tasks(...)
-        pos = max([(s.get("position") or 1.0) for s in siblings], default=0.0) + 1.0
-        return self.client.create_task(
-            title=title,
-            context_id=None,            # si tus subtareas no tienen contexto propio
-            parent_id=parent_task_id,   # <-- campo que tu schema soporte (p.ej. parent_id)
-            position=pos,
-            kind="subtask",
-            status="open",
-        )
+##A IMPLEMENTAR:
 
+    def archive(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        return self.client.patch_task(task["id"], status="archived")
+    
     # Opcional: helper semántico
     def rename_task(self, task_id: str, new_title: str) -> Dict[str, Any]:
         return self.update_task(task_id, title=new_title)
@@ -75,10 +59,7 @@ class AppController:
         """Editar/patch de una tarea."""
         return self.client.patch_task(task_id, **fields)
 
-    def rename_task(self, task_id: str, new_title: str) -> Dict[str, Any]:
-        return self.update_task(task_id, title=new_title)
-
-    def create_subtask(self, parent_task_id: str, title: str) -> Dict[str, Any]:
+    def create_subtask_a(self, parent_task_id: str, title: str) -> Dict[str, Any]:
         """Crea una subtarea colgando de parent_task."""
         # Listar hermanas para calcular position
         try:
@@ -94,6 +75,20 @@ class AppController:
             title=title,
             context_id=None,          # si tus subtareas no heredan contexto; ajusta si corresponde
             parent_task=parent_task_id,   # <-- tu schema
+            position=pos,
+            kind="subtask",
+            status="open",
+        )
+
+    def create_subtask_b(self, parent_task_id: str, title: str) -> Dict[str, Any]:
+        """Crear una subtarea ligada a una tarea padre."""
+        # posición naive al final dentro del grupo del padre
+        siblings = self.client.list_subtasks(parent_task_id)  # si no lo tienes, usa un filtro list_tasks(...)
+        pos = max([(s.get("position") or 1.0) for s in siblings], default=0.0) + 1.0
+        return self.client.create_task(
+            title=title,
+            context_id=None,            # si tus subtareas no tienen contexto propio
+            parent_id=parent_task_id,   # <-- campo que tu schema soporte (p.ej. parent_id)
             position=pos,
             kind="subtask",
             status="open",

@@ -28,7 +28,7 @@ class MainWindow(tk.Tk):
         self.nb.pack(fill="both", expand=True)
 
         self.tabs = {}  # context_id -> ContextTab
-        self._build_tabs()
+        self._build_tabs()# crea tabs y llama a sync
 
         # timers / binds
         self.bind("<F5>", lambda e: self._sync_all())
@@ -46,7 +46,7 @@ class MainWindow(tk.Tk):
             tab = ContextTab(self.nb, self.controller, ctx_id, c.get("name", "Context"))
             self.nb.add(tab, text=c.get("name", "Context"))
             self.tabs[ctx_id] = tab
-        self._sync_all()
+        self._sync_all()# llama a refresh de cada tab
 
     # ---------- sync ----------
     def _sync_all(self):
@@ -98,8 +98,8 @@ class ContextTab(ttk.Frame):
         self.task_list.pack(fill="both", expand=True)
 
         # Atajos equivalentes
-        self.bind_all("<space>", self._kb_toggle_last)
-        self.bind_all("<Delete>", self._kb_archive_last)
+#        self.bind_all("<space>", self._kb_toggle_last)
+#        self.bind_all("<Delete>", self._kb_archive_last)
 
     # ---------- data ----------
     def refresh(self) -> int:
