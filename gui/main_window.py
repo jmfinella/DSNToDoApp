@@ -14,6 +14,7 @@ class MainWindow(tk.Tk):
         self.configure(padx=8, pady=8)
         if TOPMOST:
             self.attributes("-topmost", True)
+        self.controller.set_main_window(self)
 
         # Top bar
         top = ttk.Frame(self)
@@ -26,6 +27,10 @@ class MainWindow(tk.Tk):
         # Notebook
         self.nb = ttk.Notebook(self)
         self.nb.pack(fill="both", expand=True)
+        
+        #Menu:
+        menu = tk.Menu(self, tearoff=False)
+        self.controller.set_menu(menu)
 
         self.tabs = {}  # context_id -> ContextTab
         self._build_tabs()# crea tabs y llama a sync
@@ -185,15 +190,6 @@ class ContextTab(ttk.Frame):
                 return
             except Exception as e:
                 print("Menu error:", e)
-
-        # Menú simple por defecto
-        menu = tk.Menu(self, tearoff=False)
-        menu.add_command(label="Editar", command=lambda: self._edit_task(task_id))
-        menu.add_command(label="Archivar", command=lambda: self._archive_task(task_id))
-        try:
-            menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
-        finally:
-            menu.grab_release()
 
     def _on_add_subtask_cb(self, task_id: str):
         self._last_task_id = task_id

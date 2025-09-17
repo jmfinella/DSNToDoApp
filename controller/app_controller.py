@@ -7,7 +7,29 @@ class AppController:
     """Coordina la UI con el backend (PocketBase) y servicios de dominio."""
     def __init__(self, client: PocketBaseClient):
         self.client = client
-
+        self.main_window=None
+        self.menu=None
+        
+    # ---- UI integration ----
+    def set_main_window(self,window):
+        self.main_window=window
+        
+    def set_menu(self,menu):
+        self.menu=menu
+        self.configure_task_menu(self.menu)
+    
+    def configure_task_menu(self, menu):
+        """Configura un menú contextual para la tarea dada."""
+        menu.add_command(label="Editar", command=lambda: self._edit_task(task_id))
+        menu.add_command(label="Archivar", command=lambda: self._archive_task(task_id))
+   
+    def show_task_menu(self, task_id: str, task: Dict[str, Any] = None):
+        """Muestra el menú contextual para la tarea dada."""    
+        try:
+            self.menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
+        finally:
+            self.menu.grab_release()
+            
     # ---- contexts ----
     def load_contexts(self) -> List[Dict[str, Any]]:
         ctx = self.client.list_contexts()
@@ -38,6 +60,10 @@ class AppController:
     def prepare_day(self):
         svc = DailyOps(self.client.base_url, self.client.token, self.client.user_id)
         svc.prepare_today()
+
+    def open_task_menu(self, task_id: str):
+        """Abre un menú contextual para la tarea dada."""
+        pass
 
 ##A IMPLEMENTAR:
 
